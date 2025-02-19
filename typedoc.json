@@ -1,0 +1,13 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeExternals": true,
+  "theme": "default",
+  "name": "Notion MCP Server",
+  "readme": "README.md",
+  "includeVersion": true,
+  "searchInComments": true,
+  "plugin": ["typedoc-plugin-markdown"]
+}

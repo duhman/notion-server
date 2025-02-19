@@ -14,7 +14,7 @@
     "notion":"./build/index.js"
   },
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "build": "tsc && node --eval \"import('fs').then(fs => fs.chmodSync('build/index.js', '755'))\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
