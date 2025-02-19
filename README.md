@@ -40,7 +40,7 @@ A Model Context Protocol (MCP) server that provides seamless integration with No
 
 - Node.js (v16 or higher)
 - Notion API key
-- MCP-compatible client (e.g., Claude Desktop)
+- MCP-compatible client (e.g., Windsurf IDE)
 
 ### Installation
 
@@ -51,13 +51,13 @@ git clone https://github.com/v-3/notion-server.git
 cd notion-server
 ```
 
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-3. Set up your environment:
+1. Set up your environment:
 
 ```bash
 # Create .env file
@@ -67,7 +67,7 @@ echo "NOTION_API_KEY=your_notion_api_key_here" > .env
 export NOTION_API_KEY=your_notion_api_key_here
 ```
 
-4. Build the server:
+1. Build the server:
 
 ```bash
 npm run build
@@ -75,7 +75,59 @@ npm run build
 
 ## 🔧 Configuration
 
-### Claude Desktop Setup
+## Server Implementation
+
+The server is implemented using the MCP SDK and follows the latest best practices for initialization and configuration:
+
+```typescript
+const server = new Server(
+  {
+    name: 'notion-mcp-server',
+    version: '1.0.0',
+    // Tool handlers
+    async listTools(request: unknown) {
+      // Implementation
+    },
+    async callTool(request: unknown) {
+      // Implementation
+    },
+  },
+  {
+    capabilities: {
+      experimental: {},
+      logging: { level: 'info' },
+      prompts: {},
+      resources: {},
+      tools: { allowList: [] },
+    },
+  }
+);
+```
+
+### Type Safety
+
+The server implements strict type checking for all Notion API interactions:
+
+```typescript
+// Database query with type-safe filters
+const response = await notionClient.raw.databases.query({
+  database_id: input.databaseId,
+  filter: input.filter as QueryDatabaseParameters['filter'],
+  sorts: input.sorts,
+});
+
+// Block operations with type-safe block objects
+const block: BlockObjectRequest = {
+  object: 'block',
+  type: input.type,
+  [input.type]: {
+    rich_text: [{ type: 'text', text: { content: input.content } }],
+    color: 'default',
+  },
+} as BlockObjectRequest;
+```
+
+## Client Setup
 
 1. Update your Claude Desktop configuration (`claude_desktop_config.json`):
 
@@ -97,7 +149,7 @@ npm run build
 
 ## 🛠️ Available Tools
 
-### Page Operations
+## Page Operations
 
 ```typescript
 // Search pages
@@ -122,7 +174,7 @@ npm run build
 {
     pageId: string,   // Page ID to update
     content: string,  // New content
-    type?: string    // Content type
+    type?: string    // Content type (paragraph, heading_1, etc.)
 }
 ```
 
@@ -133,14 +185,87 @@ npm run build
 {
     parentPageId: string,
     title: string,
-    properties: object
+    properties: object  // Type-safe database properties
 }
 
 // Query database
 {
     databaseId: string,
-    filter?: object,
+    filter?: QueryDatabaseParameters['filter'],  // Type-safe filters
     sort?: object
+}
+```
+
+## 📊 Performance & Reliability
+
+### Rate Limiting
+
+The server implements intelligent rate limiting to prevent API throttling:
+
+```typescript
+class NotionClientWrapper {
+  private rateLimiter: RateLimiter;
+  private cache: Cache;
+
+  constructor() {
+    this.rateLimiter = new RateLimiter(
+      env.RATE_LIMIT_REQUESTS,     // Default: 50
+      env.RATE_LIMIT_INTERVAL_MS   // Default: 60000
+    );
+    this.cache = new Cache(env.CACHE_TTL_MS);  // Default: 300000
+  }
+
+  async request<T>(key: string, operation: () => Promise<T>): Promise<T> {
+    // Check cache first
+    if (env.ENABLE_CACHING) {
+      const cached = this.cache.get<T>(key);
+      if (cached) return cached;
+    }
+
+    // Apply rate limiting
+    await this.rateLimiter.acquire();
+    const result = await operation();
+    
+    // Cache the result
+    if (env.ENABLE_CACHING) {
+      this.cache.set(key, result);
+    }
+    
+    return result;
+  }
+}
+```
+
+### Error Handling
+
+The server implements comprehensive error handling with custom error types:
+
+```typescript
+class NotionMCPError extends Error {
+  constructor(message: string, code: string) {
+    super(message);
+    this.code = code;
+  }
+
+  static fromError(error: unknown): NotionMCPError {
+    if (error instanceof NotionMCPError) {
+      return error;
+    }
+
+    // Handle Notion API errors
+    if (error.code === 'notFound') {
+      return new NotionMCPError('Resource not found', 'NOT_FOUND');
+    }
+    if (error.code === 'unauthorized') {
+      return new NotionMCPError('Unauthorized access', 'UNAUTHORIZED');
+    }
+
+    // Generic error
+    return new NotionMCPError(
+      'An unexpected error occurred',
+      'INTERNAL_ERROR'
+    );
+  }
 }
 ```
 

@@ -1,6 +1,7 @@
-import { notionClient } from '../config/notion-client';
-import { NotionMCPError, errorCodes } from '../utils/errors';
-import { toolSchemas } from '../schemas/tools';
+import { notionClient } from '../config/notion-client.js';
+import { NotionMCPError, errorCodes } from '../utils/errors.js';
+import { toolSchemas } from '../schemas/tools.js';
+import type { QueryDatabaseParameters } from '@notionhq/client/build/src/api-endpoints.js';
 
 export async function createDatabase(args: unknown) {
   const input = toolSchemas.createDatabase.parse(args);
@@ -30,7 +31,7 @@ export async function queryDatabase(args: unknown) {
       try {
         const response = await notionClient.raw.databases.query({
           database_id: input.databaseId,
-          filter: input.filter,
+          filter: input.filter as QueryDatabaseParameters['filter'],
           sorts: input.sorts,
         });
 

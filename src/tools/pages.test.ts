@@ -1,6 +1,6 @@
-import { MockNotionClient, createMockPage } from '../utils/test-helpers';
-import { searchPages, readPage, createPage } from './pages';
-import { NotionMCPError } from '../utils/errors';
+import { MockNotionClient, createMockPage } from '../utils/test-helpers.js';
+import { searchPages, readPage, createPage } from './pages.js';
+import { NotionMCPError } from '../utils/errors.js';
 
 // Mock the notion client
 jest.mock('../config/notion-client', () => ({
@@ -66,7 +66,7 @@ describe('Page Tools', () => {
 
       expect(result.page).toBeDefined();
       expect(result.blocks).toBeDefined();
-      expect(result.blocks.results).toHaveLength(1);
+      expect(result.blocks).toHaveLength(1);
     });
 
     it('should handle page not found', async () => {

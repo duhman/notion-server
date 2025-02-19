@@ -1,11 +1,12 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 
-import * as pageTools from './tools/pages';
-import * as databaseTools from './tools/databases';
-import { NotionMCPError } from './utils/errors';
-import { toolSchemas } from './schemas/tools';
+import * as pageTools from './tools/pages.js';
+import * as databaseTools from './tools/databases.js';
+import { NotionMCPError } from './utils/errors.js';
+import { toolSchemas } from './schemas/tools.js';
 
 // Tool definitions with optimized naming and descriptions
 const TOOL_DEFINITIONS = [
@@ -51,21 +52,71 @@ const toolHandlers = {
   notion_query_database: databaseTools.queryDatabase,
 };
 
+// Server configuration schema
+const ServerConfigSchema = z.object({
+  name: z.string(),
+  version: z.string(),
+});
+
 // Initialize MCP server with enhanced error handling
+const config = ServerConfigSchema.parse({
+  name: 'notion-mcp-server',
+  version: '1.0.0',
+});
+
+const options = {
+  capabilities: {
+    experimental: {},
+    logging: { level: 'info' },
+    prompts: {},
+    resources: {},
+    tools: { allowList: [] },
+  },
+  async listTools(request: unknown) {
+    ListToolsRequestSchema.parse(request);
+    return { tools: TOOL_DEFINITIONS };
+  },
+  async callTool(request: unknown) {
+    const parsed = CallToolRequestSchema.parse(request);
+    const toolName = parsed.params.name;
+    const args = parsed.params.arguments;
+    
+    const handler = toolHandlers[toolName as keyof typeof toolHandlers];
+    if (!handler) {
+      throw new NotionMCPError(
+        `Tool '${toolName}' not found`,
+        'TOOL_NOT_FOUND'
+      );
+    }
+
+    try {
+      const result = await handler(args);
+      return { result };
+    } catch (error) {
+      const mcpError = NotionMCPError.fromError(error);
+      throw mcpError;
+    }
+  },
+};
+
+const transport = new StdioServerTransport();
 const server = new Server(
   {
+    name: 'notion-mcp-server',
+    version: '1.0.0',
     async listTools(request: unknown) {
       ListToolsRequestSchema.parse(request);
       return { tools: TOOL_DEFINITIONS };
     },
-
     async callTool(request: unknown) {
-      const { tool, arguments: args } = CallToolRequestSchema.parse(request);
+      const parsed = CallToolRequestSchema.parse(request);
+      const toolName = parsed.params.name;
+      const args = parsed.params.arguments;
       
-      const handler = toolHandlers[tool as keyof typeof toolHandlers];
+      const handler = toolHandlers[toolName as keyof typeof toolHandlers];
       if (!handler) {
         throw new NotionMCPError(
-          `Tool '${tool}' not found`,
+          `Tool '${toolName}' not found`,
           'TOOL_NOT_FOUND'
         );
       }
@@ -79,17 +130,16 @@ const server = new Server(
       }
     },
   },
-  new StdioServerTransport(),
+  {
+    capabilities: {
+      experimental: {},
+      logging: { level: 'info' },
+      prompts: {},
+      resources: {},
+      tools: { allowList: [] },
+    },
+  }
 );
 
 // Start the server
-async function main() {
-  try {
-    await server.start();
-  } catch (error) {
-    console.error('Fatal error:', error);
-    process.exit(1);
-  }
-}
-
-main();
+transport.start();

@@ -1,10 +1,10 @@
 import { Client } from '@notionhq/client';
-import { RateLimiter } from '../utils/rate-limiter';
-import { Cache } from '../utils/cache';
-import { env } from './environment';
+import { RateLimiter } from '../utils/rate-limiter.js';
+import { Cache } from '../utils/cache.js';
+import { env } from './environment.js';
 
-class NotionClientWrapper {
-  private client: Client;
+export class NotionClientWrapper {
+  protected client: Client;
   private rateLimiter: RateLimiter;
   private cache: Cache;
 

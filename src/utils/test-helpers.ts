@@ -1,7 +1,8 @@
 import { Client } from '@notionhq/client';
-import { NotionClientWrapper } from '../config/notion-client';
+import { NotionClientWrapper } from '../config/notion-client.js';
 
 export class MockNotionClient extends NotionClientWrapper {
+  protected client: Client;
   mockResponses: Map<string, any> = new Map();
   mockErrors: Map<string, Error> = new Map();
   calls: { method: string; args: any[] }[] = [];
